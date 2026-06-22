@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campus Tecnificación Santa Ponsa · Verano 2026</title>
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --pitch: #1a3a1a;
+    --pitch-mid: #22472a;
+    --pitch-light: #2d5c36;
+    --lime: #7FBF3B;
+    --lime-bright: #9DD94A;
+    --white: #f5f5f0;
+    --gray: #8a9a8a;
+    --card: rgba(255,255,255,0.04);
+    --border: rgba(127,191,59,0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--pitch);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+
+
+  /* HERO */
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 24px 48px;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 100%, rgba(127,191,59,0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 40% at 50% -10%, rgba(255,255,255,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* FIELD LINES - signature element */
+  .field-lines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0.15;
+  }
+  .field-lines svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+  }
+
+  .badge {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 24px;
+    background: rgba(127,191,59,0.15);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+
+  .hero-eyebrow {
+    position: relative;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--lime);
+    margin-bottom: 16px;
+  }
+
+  .hero-title {
+    position: relative;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(60px, 14vw, 120px);
+    line-height: 0.92;
+    letter-spacing: 0.01em;
+    color: var(--white);
+    text-shadow: 0 4px 40px rgba(0,0,0,0.4);
+    margin-bottom: 8px;
+  }
+
+  .hero-title span {
+    display: block;
+    color: var(--lime);
+  }
+
+  .hero-sub {
+    position: relative;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(22px, 5vw, 36px);
+    letter-spacing: 0.15em;
+    color: var(--gray);
+    margin-bottom: 40px;
+  }
+
+  .hero-info {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 420px;
+    margin-bottom: 40px;
+  }
+
+  .info-pill {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: left;
+  }
+
+  .info-pill .icon { font-size: 18px; margin-bottom: 4px; display: block; }
+  .info-pill .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gray); }
+  .info-pill .value { font-size: 13px; font-weight: 600; color: var(--white); margin-top: 2px; }
+
+  .cta-btn {
+    position: relative;
+    display: inline-block;
+    background: var(--lime);
+    color: #0d1f0d;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 16px 40px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: 0 0 30px rgba(127,191,59,0.3);
+  }
+  .cta-btn:hover {
+    background: var(--lime-bright);
+    transform: translateY(-2px);
+    box-shadow: 0 0 50px rgba(127,191,59,0.45);
+  }
+
+  /* FORM SECTION */
+  .section {
+    position: relative;
+    padding: 80px 24px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--lime);
+    margin-bottom: 8px;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(36px, 8vw, 56px);
+    line-height: 1;
+    margin-bottom: 40px;
+  }
+
+  /* PRICE DISPLAY */
+  .price-display {
+    background: linear-gradient(135deg, rgba(127,191,59,0.12), rgba(127,191,59,0.04));
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .price-label { font-size: 12px; color: var(--gray); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+  .price-amount {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    line-height: 1;
+    color: var(--lime);
+  }
+  .price-amount span { font-size: 36px; }
+  .price-note { font-size: 12px; color: var(--gray); margin-top: 8px; }
+  .price-breakdown {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 16px;
+  }
+  .price-tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    background: rgba(127,191,59,0.15);
+    border-radius: 20px;
+    color: var(--lime);
+    border: 1px solid rgba(127,191,59,0.2);
+  }
+  .price-tag.active {
+    background: var(--lime);
+    color: #0d1f0d;
+    font-weight: 700;
+  }
+
+  /* FORM */
+  .form-card {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 32px 28px;
+  }
+
+  .form-group { margin-bottom: 20px; }
+
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gray);
+    margin-bottom: 8px;
+  }
+
+  .form-input, .form-select {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .form-input::placeholder { color: rgba(255,255,255,0.25); }
+  .form-input:focus, .form-select:focus {
+    border-color: var(--lime);
+    background: rgba(127,191,59,0.05);
+  }
+  .form-select option { background: #1a3a1a; color: #fff; }
+
+  .radio-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .radio-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .radio-option {
+    position: relative;
+    cursor: pointer;
+  }
+  .radio-option input { position: absolute; opacity: 0; width: 0; }
+  .radio-label {
+    display: block;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .radio-option input:checked + .radio-label {
+    background: rgba(127,191,59,0.15);
+    border-color: var(--lime);
+    color: var(--lime);
+  }
+  .radio-label:hover {
+    border-color: rgba(127,191,59,0.4);
+  }
+
+  .checkbox-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .checkbox-option:hover { border-color: rgba(127,191,59,0.4); }
+  .checkbox-option.selected {
+    background: rgba(127,191,59,0.1);
+    border-color: var(--lime);
+  }
+  .checkbox-option input { display: none; }
+  .check-box {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 5px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    font-size: 11px;
+  }
+  .checkbox-option.selected .check-box {
+    background: var(--lime);
+    border-color: var(--lime);
+    color: #0d1f0d;
+  }
+  .check-text { font-size: 13px; font-weight: 500; }
+  .check-sub { font-size: 11px; color: var(--gray); }
+
+  .divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    margin: 28px 0;
+  }
+
+  /* STRIPE */
+  #card-element {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color 0.2s;
+  }
+  #card-element.StripeElement--focus {
+    border-color: var(--lime);
+    background: rgba(127,191,59,0.05);
+  }
+  #card-errors {
+    color: #ff6b6b;
+    font-size: 13px;
+    margin-top: 8px;
+    min-height: 20px;
+  }
+
+  .submit-btn {
+    width: 100%;
+    background: var(--lime);
+    color: #0d1f0d;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 18px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 0 30px rgba(127,191,59,0.25);
+  }
+  .submit-btn:hover:not(:disabled) {
+    background: var(--lime-bright);
+    transform: translateY(-1px);
+    box-shadow: 0 0 50px rgba(127,191,59,0.4);
+  }
+  .submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .lock-icon { font-size: 14px; }
+
+  /* SUCCESS */
+  .success-screen {
+    display: none;
+    text-align: center;
+    padding: 60px 32px;
+  }
+  .success-screen.visible { display: block; }
+  .success-icon {
+    font-size: 64px;
+    margin-bottom: 24px;
+    display: block;
+  }
+  .success-screen h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    color: var(--lime);
+    margin-bottom: 12px;
+  }
+  .success-screen p { color: var(--gray); line-height: 1.6; }
+
+  /* DISCOUNT BADGE */
+  .discount-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(127,191,59,0.15);
+    border: 1px solid rgba(127,191,59,0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--lime);
+    margin-bottom: 20px;
+  }
+
+  /* FOOTER */
+  footer {
+    position: relative;
+    text-align: center;
+    padding: 40px 24px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    color: var(--gray);
+    font-size: 12px;
+  }
+  footer a { color: var(--lime); text-decoration: none; }
+
+  /* LOADING SPINNER */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-top-color: #0d1f0d;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  .spinner.visible { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* STRIPE NOTICE */
+  .stripe-notice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--gray);
+    margin-top: 14px;
+  }
+  .stripe-notice span { font-weight: 600; color: rgba(255,255,255,0.4); }
+
+  @media (max-width: 480px) {
+    .hero-info { grid-template-columns: 1fr 1fr; }
+    .form-card { padding: 24px 20px; }
+    .radio-grid.cols-3 { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="field-lines">
+    <svg viewBox="0 0 400 700" preserveAspectRatio="xMidYMid slice" fill="none" stroke="white" stroke-width="1.5">
+      <rect x="40" y="80" width="320" height="540" rx="2"/>
+      <line x1="40" y1="350" x2="360" y2="350"/>
+      <circle cx="200" cy="350" r="60"/>
+      <rect x="120" y="80" width="160" height="80"/>
+      <rect x="155" y="80" width="90" height="40"/>
+      <rect x="120" y="540" width="160" height="80"/>
+      <rect x="155" y="580" width="90" height="40"/>
+    </svg>
+  </div>
+
+  <p class="hero-eyebrow">Club Santa Ponsa · Mallorca</p>
+  <h1 class="hero-title">Campus<br><span>Tecnificación</span><br>Santa Ponsa</h1>
+  <p class="hero-sub">Verano 2026</p>
+
+  <div class="hero-info">
+    <div class="info-pill">
+      <div class="label">Fechas</div>
+      <div class="value">29 Jun – 31 Jul</div>
+    </div>
+    <div class="info-pill">
+      <div class="label">Horario</div>
+      <div class="value">09:00 – 14:00</div>
+    </div>
+    <div class="info-pill">
+      <div class="label">Edades</div>
+      <div class="value">3 – 16 años</div>
+    </div>
+    <div class="info-pill">
+      <div class="label">Incluye</div>
+      <div class="value">Camiseta oficial</div>
+    </div>
+  </div>
+
+  <a href="#inscripcion" class="cta-btn">Inscribirse ahora →</a>
+</section>
+
+<!-- FORM SECTION -->
+<div id="inscripcion" class="section">
+  <p class="section-label">Inscripción</p>
+  <h2 class="section-title">Reserva tu plaza</h2>
+
+  <!-- PRICE DISPLAY -->
+  <div class="price-display" id="price-display">
+    <div class="price-label">Total a pagar</div>
+    <div class="price-amount"><span>€</span><span id="price-number">—</span></div>
+    <div class="price-note" id="price-note">Selecciona semanas y descuento para ver el precio</div>
+    <div class="price-breakdown" id="price-breakdown"></div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="success-screen" id="success-screen">
+    <span class="success-icon" style="font-size:48px;">✓</span>
+    <h2>¡Plaza confirmada!</h2>
+    <p>Recibirás un email de confirmación con todos los detalles del campus.<br><br>
+    ¡Nos vemos en el campo!</p>
+  </div>
+
+  <!-- FORM -->
+  <div class="form-card" id="form-card">
+
+    <div class="form-group">
+      <label class="form-label">Nombre del niñ@</label>
+      <input type="text" class="form-input" id="child-name" placeholder="Nombre completo">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Email de contacto</label>
+      <input type="email" class="form-input" id="parent-email" placeholder="tu@email.com">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Teléfono</label>
+      <input type="tel" class="form-input" id="phone" placeholder="+34 600 000 000">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Edad</label>
+      <div class="radio-grid cols-3">
+        <label class="radio-option">
+          <input type="radio" name="age" value="3-6"> 
+          <span class="radio-label">3–6 años</span>
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="age" value="7-10"> 
+          <span class="radio-label">7–10 años</span>
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="age" value="11-16"> 
+          <span class="radio-label">11–16 años</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Semanas (selecciona las que asistirá)</label>
+      <div id="weeks-container">
+        <div class="checkbox-option" data-week="1" onclick="toggleWeek(this)">
+          <input type="checkbox"><div class="check-box"></div>
+          <div><div class="check-text">Semana 1</div><div class="check-sub">29 Jun – 3 Jul</div></div>
+        </div>
+        <div class="checkbox-option" data-week="2" onclick="toggleWeek(this)">
+          <input type="checkbox"><div class="check-box"></div>
+          <div><div class="check-text">Semana 2</div><div class="check-sub">6 – 10 Jul</div></div>
+        </div>
+        <div class="checkbox-option" data-week="3" onclick="toggleWeek(this)">
+          <input type="checkbox"><div class="check-box"></div>
+          <div><div class="check-text">Semana 3</div><div class="check-sub">13 – 17 Jul</div></div>
+        </div>
+        <div class="checkbox-option" data-week="4" onclick="toggleWeek(this)">
+          <input type="checkbox"><div class="check-box"></div>
+          <div><div class="check-text">Semana 4</div><div class="check-sub">20 – 24 Jul</div></div>
+        </div>
+        <div class="checkbox-option" data-week="5" onclick="toggleWeek(this)">
+          <input type="checkbox"><div class="check-box"></div>
+          <div><div class="check-text">Semana 5</div><div class="check-sub">27 – 31 Jul</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Descuento aplicable</label>
+      <div class="radio-grid" style="grid-template-columns:1fr;">
+        <label class="radio-option">
+          <input type="radio" name="discount" value="none" onchange="calcPrice()"> 
+          <span class="radio-label" style="text-align:left;padding-left:16px;">Sin descuento</span>
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="discount" value="resident" onchange="calcPrice()"> 
+          <span class="radio-label" style="text-align:left;padding-left:16px;">Residente de Calviá</span>
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="discount" value="sibling" onchange="calcPrice()"> 
+          <span class="radio-label" style="text-align:left;padding-left:16px;">2.º hermano / Familia numerosa (no residente)</span>
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="discount" value="sibling-resident" onchange="calcPrice()"> 
+          <span class="radio-label" style="text-align:left;padding-left:16px;">2.º hermano / Familia numerosa + Residente Calviá</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Talla camiseta</label>
+      <div class="radio-grid cols-3">
+        <label class="radio-option"><input type="radio" name="size" value="6-8"> <span class="radio-label">6–8 años</span></label>
+        <label class="radio-option"><input type="radio" name="size" value="8-10"> <span class="radio-label">8–10 años</span></label>
+        <label class="radio-option"><input type="radio" name="size" value="10-12"> <span class="radio-label">10–12 años</span></label>
+        <label class="radio-option"><input type="radio" name="size" value="14"> <span class="radio-label">14 años</span></label>
+        <label class="radio-option"><input type="radio" name="size" value="XS"> <span class="radio-label">XS</span></label>
+        <label class="radio-option"><input type="radio" name="size" value="S"> <span class="radio-label">S</span></label>
+        <label class="radio-option"><input type="radio" name="size" value="M"> <span class="radio-label">M</span></label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Alergias u otras condiciones médicas</label>
+      <input type="text" class="form-input" id="allergies" placeholder="Ninguna / especifica aquí">
+    </div>
+
+    <hr class="divider">
+
+    <!-- STRIPE CARD -->
+    <div class="form-group">
+      <label class="form-label">Datos de pago</label>
+      <div id="card-element"></div>
+      <div id="card-errors"></div>
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="handleSubmit()" disabled>
+      <div class="spinner" id="spinner"></div>
+      <span id="btn-text">Selecciona semanas para pagar</span>
+    </button>
+
+    <div class="stripe-notice">
+      Pago seguro con <span>Stripe</span> · Datos cifrados SSL
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <p>Campus Tecnificación Santa Ponsa · Verano 2026</p>
+  <p style="margin-top:8px;">Información y reservas: <a href="https://wa.me/34628836708">+34 628 83 67 08</a></p>
+  <p style="margin-top:16px; font-size:11px; color: rgba(138,154,138,0.5);">
+    Powered by Stripe · Todos los precios incluyen impuestos
+  </p>
+</footer>
+
+<script>
+// =============================================
+// STRIPE SETUP
+// ⚠️ REPLACE WITH YOUR PUBLISHABLE KEY
+// =============================================
+const STRIPE_PUBLIC_KEY = 'pk_test_YOUR_PUBLISHABLE_KEY_HERE';
+
+let stripe, cardElement;
+
+function initStripe() {
+  try {
+    stripe = Stripe(STRIPE_PUBLIC_KEY);
+    const elements = stripe.elements({
+      fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap' }]
+    });
+    cardElement = elements.create('card', {
+      style: {
+        base: {
+          color: '#f5f5f0',
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '15px',
+          fontWeight: '400',
+          '::placeholder': { color: 'rgba(245,245,240,0.3)' },
+          iconColor: '#7FBF3B'
+        },
+        invalid: { color: '#ff6b6b', iconColor: '#ff6b6b' }
+      }
+    });
+    cardElement.mount('#card-element');
+    cardElement.on('change', e => {
+      document.getElementById('card-errors').textContent = e.error ? e.error.message : '';
+    });
+  } catch(e) {
+    console.log('Stripe init skipped (no key yet):', e.message);
+    document.getElementById('card-element').innerHTML = '<p style="color:var(--gray);font-size:13px;">⚠️ Configura tu clave Stripe para activar pagos</p>';
+  }
+}
+
+// =============================================
+// PRICING TABLE
+// =============================================
+const PRICES = {
+  none:             [0, 140, 195, 255, 310, 360],
+  resident:         [0, 119, 165, 216, 263, 307],
+  sibling:          [0, 112, 156, 204, 248, 288],
+  'sibling-resident':[0,  95, 132, 172, 210, 252]
+};
+
+const DISCOUNT_LABELS = {
+  none: 'Precio estándar',
+  resident: 'Residente Calviá',
+  sibling: '2.º hermano / Familia numerosa',
+  'sibling-resident': '2.º herm. + Residente'
+};
+
+let selectedWeeks = [];
+
+function toggleWeek(el) {
+  const week = parseInt(el.dataset.week);
+  el.classList.toggle('selected');
+  const box = el.querySelector('.check-box');
+
+  if (el.classList.contains('selected')) {
+    selectedWeeks.push(week);
+    box.textContent = '✓';
+  } else {
+    selectedWeeks = selectedWeeks.filter(w => w !== week);
+    box.textContent = '';
+  }
+  calcPrice();
+}
+
+function calcPrice() {
+  const count = selectedWeeks.length;
+  const discount = document.querySelector('input[name="discount"]:checked')?.value;
+  const btn = document.getElementById('submit-btn');
+  const btnText = document.getElementById('btn-text');
+
+  if (count === 0 || !discount) {
+    document.getElementById('price-number').textContent = '—';
+    document.getElementById('price-note').textContent = 'Selecciona semanas y descuento';
+    document.getElementById('price-breakdown').innerHTML = '';
+    btn.disabled = true;
+    btnText.textContent = count === 0 ? 'Selecciona semanas para pagar' : 'Selecciona tipo de descuento';
+    return;
+  }
+
+  const price = PRICES[discount][count];
+  document.getElementById('price-number').textContent = price;
+  document.getElementById('price-note').textContent = `${count} semana${count > 1 ? 's' : ''} · ${DISCOUNT_LABELS[discount]}`;
+
+  // show week tags
+  const breakdown = document.getElementById('price-breakdown');
+  breakdown.innerHTML = '';
+  [1,2,3,4,5].forEach(w => {
+    const tag = document.createElement('span');
+    tag.className = 'price-tag' + (selectedWeeks.includes(w) ? ' active' : '');
+    tag.textContent = `S${w}`;
+    breakdown.appendChild(tag);
+  });
+
+  btn.disabled = false;
+  btnText.textContent = `Pagar ${price} €`;
+}
+
+// =============================================
+// PAYMENT HANDLER
+// ⚠️ YOU NEED A BACKEND to create PaymentIntent
+// See comments below
+// =============================================
+async function handleSubmit() {
+  const name = document.getElementById('child-name').value.trim();
+  const email = document.getElementById('parent-email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const age = document.querySelector('input[name="age"]:checked')?.value;
+  const discount = document.querySelector('input[name="discount"]:checked')?.value;
+  const size = document.querySelector('input[name="size"]:checked')?.value;
+
+  if (!name || !email || !age || !discount || selectedWeeks.length === 0 || !size) {
+    alert('Por favor rellena todos los campos obligatorios');
+    return;
+  }
+
+  const count = selectedWeeks.length;
+  const price = PRICES[discount][count];
+
+  const btn = document.getElementById('submit-btn');
+  const spinner = document.getElementById('spinner');
+  const btnText = document.getElementById('btn-text');
+  btn.disabled = true;
+  spinner.classList.add('visible');
+  btnText.textContent = 'Procesando...';
+
+  try {
+    // ⚠️ BACKEND REQUIRED:
+    // Your server needs to create a PaymentIntent and return client_secret
+    // Example endpoint: POST /create-payment-intent
+    // Body: { amount: price * 100, currency: 'eur', metadata: {...} }
+    //
+    // Uncomment and configure when backend is ready:
+    //
+    // const res = await fetch('YOUR_BACKEND_URL/create-payment-intent', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     amount: price * 100,
+    //     currency: 'eur',
+    //     metadata: { child: name, email, weeks: selectedWeeks.join(','), discount }
+    //   })
+    // });
+    // const { clientSecret } = await res.json();
+    //
+    // const result = await stripe.confirmCardPayment(clientSecret, {
+    //   payment_method: { card: cardElement, billing_details: { name, email, phone } }
+    // });
+    //
+    // if (result.error) throw new Error(result.error.message);
+
+    // DEMO SUCCESS (remove when backend is connected):
+    await new Promise(r => setTimeout(r, 1800));
+    showSuccess();
+
+  } catch(err) {
+    document.getElementById('card-errors').textContent = err.message;
+    btn.disabled = false;
+    spinner.classList.remove('visible');
+    btnText.textContent = `Pagar ${price} €`;
+  }
+}
+
+function showSuccess() {
+  document.getElementById('form-card').style.display = 'none';
+  document.getElementById('price-display').style.display = 'none';
+  document.getElementById('success-screen').classList.add('visible');
+  window.scrollTo({ top: document.getElementById('inscripcion').offsetTop - 20, behavior: 'smooth' });
+}
+
+// Init
+window.addEventListener('load', initStripe);
+</script>
+</body>
+</html>
