@@ -677,7 +677,7 @@
 // STRIPE SETUP
 // ⚠️ REPLACE WITH YOUR PUBLISHABLE KEY
 // =============================================
-const STRIPE_PUBLIC_KEY = 'pk_test_YOUR_PUBLISHABLE_KEY_HERE';
+const STRIPE_PUBLIC_KEY = 'pk_live_51TdnJEFB7wERNFpwMhdWeNLQxZpGIufy0lby2rVMNuCtcGeFAETwI12BpC0Df8Hrsz5fq18beYd9wggsTnnA6Eh200BfeAGDNJ';
 
 let stripe, cardElement;
 
@@ -806,32 +806,23 @@ async function handleSubmit() {
   btnText.textContent = 'Procesando...';
 
   try {
-    // ⚠️ BACKEND REQUIRED:
-    // Your server needs to create a PaymentIntent and return client_secret
-    // Example endpoint: POST /create-payment-intent
-    // Body: { amount: price * 100, currency: 'eur', metadata: {...} }
-    //
-    // Uncomment and configure when backend is ready:
-    //
-    // const res = await fetch('YOUR_BACKEND_URL/create-payment-intent', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     amount: price * 100,
-    //     currency: 'eur',
-    //     metadata: { child: name, email, weeks: selectedWeeks.join(','), discount }
-    //   })
-    // });
-    // const { clientSecret } = await res.json();
-    //
-    // const result = await stripe.confirmCardPayment(clientSecret, {
-    //   payment_method: { card: cardElement, billing_details: { name, email, phone } }
-    // });
-    //
-    // if (result.error) throw new Error(result.error.message);
+    const res = await fetch('/.netlify/functions/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: price * 100,
+        currency: 'eur',
+        metadata: { child: name, email, weeks: selectedWeeks.join(','), discount }
+      })
+    });
+    const { clientSecret, error: backendError } = await res.json();
+    if (backendError) throw new Error(backendError);
 
-    // DEMO SUCCESS (remove when backend is connected):
-    await new Promise(r => setTimeout(r, 1800));
+    const result = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: { card: cardElement, billing_details: { name, email, phone } }
+    });
+    if (result.error) throw new Error(result.error.message);
+
     showSuccess();
 
   } catch(err) {
