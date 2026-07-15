@@ -138,26 +138,19 @@
     margin-top: 8px;
   }
 
-  .titulo {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: clamp(2.6rem, 11vw, 4.2rem);
-    letter-spacing: .05em;
-    color: var(--ink);
-    margin-top: 20px;
-    line-height: .9;
-  }
-  .subtitulo {
-    font-family: 'Inter', sans-serif;
-    font-size: .78rem;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    margin-top: 8px;
+  .sr-solo {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   .regla-perforada {
     height: 3px;
     max-width: 480px;
-    margin: 22px auto 0;
+    margin: 26px auto 0;
     background-image: repeating-linear-gradient(90deg, var(--rule) 0 7px, transparent 7px 14px);
   }
 
@@ -488,8 +481,7 @@
       <div class="reloj-lectura" id="relojLectura">00:00:00</div>
       <div class="reloj-fecha" id="relojFecha">CARGANDO FECHA</div>
     </div>
-    <h1 class="titulo">LA OFICINA</h1>
-    <p class="subtitulo">Reservas de la sala · fichaje por horas</p>
+    <h1 class="sr-solo">Reservas de la sala compartida</h1>
     <div class="regla-perforada" aria-hidden="true"></div>
   </header>
 
@@ -515,7 +507,7 @@
     <section class="tarjetero" id="tarjetero" aria-label="Franjas horarias del día"></section>
   </main>
 
-  <footer class="pie">LA OFICINA — RESERVAS COMPARTIDAS</footer>
+  <footer class="pie">RESERVAS COMPARTIDAS · FICHAJE POR HORAS</footer>
 </div>
 
 <div class="modal-fondo" id="modalFondo" hidden>
@@ -537,9 +529,9 @@
   /* ═══════════════════════════════════════════════════════════════════
      CONFIGURACIÓN — edita estos valores antes de desplegar
      ═══════════════════════════════════════════════════════════════════ */
-  const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
-  const SUPABASE_KEY = 'TU-CLAVE-ANON-PUBLICA';
-  const ADMIN_PASS   = 'cambia-esto';
+  const SUPABASE_URL = 'https://cutuercagldtrrsnqzta.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1dHVlcmNhZ2xkdHJyc25xenRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMzUyNzksImV4cCI6MjA5OTcxMTI3OX0.UT4L4agtu9rnnPOUSN5DhQcYNoHZjQhZShspPDNVgZU';
+  const ADMIN_PASS   = '2803';
   const HORA_INICIO  = 8;   // primera franja empieza a esta hora
   const HORA_FIN     = 21;  // última franja termina a esta hora
   /* ═══════════════════════════════════════════════════════════════════ */
@@ -648,6 +640,7 @@
     primerRenderDia = true;
     reservasActuales = {};
     actualizarSelectorActivo();
+    renderPlaceholderCarga();
     cargarReservas();
   }
 
@@ -710,22 +703,33 @@
     renderTarjetas(reservasActuales);
   }
 
+  // Pinta las franjas como libres de inmediato, sin esperar a Supabase,
+  // para que la tarjeta nunca se quede vacía mientras carga o si falla la conexión.
+  function renderPlaceholderCarga() {
+    elTarjetero.innerHTML = '';
+    for (let hora = HORA_INICIO; hora < HORA_FIN; hora++) {
+      elTarjetero.appendChild(crearFilaTarjeta(hora, null, false));
+    }
+  }
+
   async function cargarReservas() {
     if (!clienteSupabase) return;
-    const { data, error } = await clienteSupabase
-      .from('reservas')
-      .select('*')
-      .eq('dia', diaSeleccionado)
-      .order('hora', { ascending: true });
+    try {
+      const { data, error } = await clienteSupabase
+        .from('reservas')
+        .select('*')
+        .eq('dia', diaSeleccionado)
+        .order('hora', { ascending: true });
 
-    if (error) {
-      mostrarMensaje('No se han podido cargar las reservas. Revisa la conexión.', 'error');
+      if (error) throw error;
+
+      const mapa = {};
+      (data || []).forEach(r => { mapa[r.hora] = r; });
+      renderTarjetas(mapa);
+    } catch (error) {
+      mostrarMensaje('No se han podido cargar las reservas. Revisa la configuración de Supabase.', 'error');
       console.error(error);
-      return;
     }
-    const mapa = {};
-    (data || []).forEach(r => { mapa[r.hora] = r; });
-    renderTarjetas(mapa);
   }
 
   /* ---------- acciones de reserva ---------- */
@@ -738,19 +742,21 @@
     }
     localStorage.setItem('oficina_nombre', nombre);
 
-    const { error } = await clienteSupabase
-      .from('reservas')
-      .insert({ dia: diaSeleccionado, hora, nombre });
+    try {
+      const { error } = await clienteSupabase
+        .from('reservas')
+        .insert({ dia: diaSeleccionado, hora, nombre });
 
-    if (error) {
-      if (error.code === '23505') {
-        mostrarMensaje('Ese hueco acaba de ser fichado por otra persona. Actualizando…', 'error');
-      } else {
-        mostrarMensaje('No se ha podido guardar la reserva. Inténtalo de nuevo.', 'error');
-        console.error(error);
+      if (error) {
+        if (error.code === '23505') {
+          mostrarMensaje('Ese hueco acaba de ser fichado por otra persona. Actualizando…', 'error');
+        } else {
+          throw error;
+        }
       }
-      await cargarReservas();
-      return;
+    } catch (error) {
+      mostrarMensaje('No se ha podido guardar la reserva. Revisa la configuración de Supabase.', 'error');
+      console.error(error);
     }
     await cargarReservas();
   }
@@ -764,13 +770,14 @@
       : `¿Cancelar la reserva de ${reserva.nombre} a las ${formatoHora(reserva.hora)}?`;
     if (!confirm(texto)) return;
 
-    const { error } = await clienteSupabase.from('reservas').delete().eq('id', reserva.id);
-    if (error) {
+    try {
+      const { error } = await clienteSupabase.from('reservas').delete().eq('id', reserva.id);
+      if (error) throw error;
+      mostrarMensaje('Reserva cancelada.', 'info');
+    } catch (error) {
       mostrarMensaje('No se ha podido cancelar la reserva. Inténtalo de nuevo.', 'error');
       console.error(error);
-      return;
     }
-    mostrarMensaje('Reserva cancelada.', 'info');
     await cargarReservas();
   }
 
@@ -778,13 +785,14 @@
     if (!modoAdmin) return;
     if (!confirm('¿Vaciar todas las reservas de este día? Esta acción no se puede deshacer.')) return;
 
-    const { error } = await clienteSupabase.from('reservas').delete().eq('dia', diaSeleccionado);
-    if (error) {
+    try {
+      const { error } = await clienteSupabase.from('reservas').delete().eq('dia', diaSeleccionado);
+      if (error) throw error;
+      mostrarMensaje('Día vaciado.', 'info');
+    } catch (error) {
       mostrarMensaje('No se ha podido vaciar el día.', 'error');
       console.error(error);
-      return;
     }
-    mostrarMensaje('Día vaciado.', 'info');
     await cargarReservas();
   }
 
@@ -851,11 +859,6 @@
 
   /* ---------- arranque ---------- */
   function iniciar() {
-    if (SUPABASE_URL.includes('TU-PROYECTO') || SUPABASE_KEY.includes('TU-CLAVE')) {
-      mostrarMensaje('Configura SUPABASE_URL y SUPABASE_KEY en el archivo antes de usar la aplicación.', 'error');
-    }
-    clienteSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
     elInputNombre.value = localStorage.getItem('oficina_nombre') || '';
 
     actualizarReloj();
@@ -863,6 +866,19 @@
 
     renderSelectorDias();
     actualizarUIAdmin();
+    renderPlaceholderCarga();
+
+    if (SUPABASE_URL.includes('TU-PROYECTO') || SUPABASE_KEY.includes('TU-CLAVE')) {
+      mostrarMensaje('Configura SUPABASE_URL y SUPABASE_KEY en el archivo antes de usar la aplicación.', 'error');
+      return;
+    }
+    try {
+      clienteSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } catch (error) {
+      mostrarMensaje('No se ha podido conectar con Supabase. Revisa SUPABASE_URL y SUPABASE_KEY.', 'error');
+      console.error(error);
+      return;
+    }
     cargarReservas();
     iniciarPolling();
   }
