@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<!--
+  ══════════════════════════════════════════════════════════════════════
+  SQL para Supabase (ejecutar una vez en el editor SQL del proyecto):
+
+  create table reservas (
+    id bigint generated always as identity primary key,
+    dia date not null, hora int not null, nombre text not null,
+    created_at timestamptz default now(), unique (dia, hora));
+  alter table reservas enable row level security;
+  create policy "todos" on reservas for all using (true) with check (true);
+  ══════════════════════════════════════════════════════════════════════
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Oficina — Reservas</title>
+<meta name="description" content="Reservas de la oficina compartida en franjas de una hora.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================= RESET Y BASE ============================= */
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --paper: #E4DFD3;
+    --paper-alt: #EFEAE0;
+    --paper-light: #F5F1E7;
+    --ink: #1C1B18;
+    --ink-soft: #55524a;
+    --rule: #C9C3B4;
+    --sello: #B23A2E;
+    --sello-oscuro: #8f2e24;
+  }
+  html { color-scheme: light; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    position: relative;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* textura de fibra de papel, muy sutil */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      repeating-linear-gradient(115deg, rgba(28,27,24,.035) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(25deg, rgba(28,27,24,.02) 0 1px, transparent 1px 4px);
+    mix-blend-mode: multiply;
+  }
+  h1, h2, h3, p, ul { margin: 0; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  img { max-width: 100%; display: block; }
+
+  :focus-visible {
+    outline: 3px solid var(--sello);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  [hidden] { display: none !important; }
+
+  .envoltorio {
+    position: relative;
+    z-index: 1;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 28px 16px 80px;
+  }
+
+  /* ============================= CABECERA / RELOJ ============================= */
+  .cabecera { text-align: center; padding-top: 4px; }
+
+  .reloj-carcasa {
+    width: min(300px, 82vw);
+    margin: 0 auto;
+    background: linear-gradient(180deg, #2c2a25 0%, var(--ink) 100%);
+    border-radius: 12px;
+    padding: 18px 18px 20px;
+    position: relative;
+    box-shadow:
+      0 3px 0 rgba(0,0,0,.25),
+      0 16px 28px rgba(0,0,0,.35),
+      inset 0 2px 0 rgba(255,255,255,.07),
+      inset 0 -3px 6px rgba(0,0,0,.4);
+  }
+  .reloj-tornillo {
+    position: absolute;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #b8b3a5, #4c4a43 70%);
+    box-shadow: 0 1px 1px rgba(0,0,0,.6);
+  }
+  .reloj-tornillo.tl { top: 9px; left: 10px; }
+  .reloj-tornillo.tr { top: 9px; right: 10px; }
+  .reloj-tornillo.bl { bottom: 9px; left: 10px; }
+  .reloj-tornillo.br { bottom: 9px; right: 10px; }
+
+  .reloj-piloto {
+    position: absolute;
+    top: 13px; right: 26px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--sello);
+    box-shadow: 0 0 6px 1px rgba(178,58,46,.7);
+    animation: piloto 2.4s ease-in-out infinite;
+  }
+  @keyframes piloto {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .35; }
+  }
+
+  .reloj-lectura {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: clamp(2rem, 8.5vw, 3rem);
+    color: var(--paper-light);
+    letter-spacing: .04em;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 14px rgba(178,58,46,.3);
+    line-height: 1;
+    margin-top: 6px;
+  }
+  .reloj-fecha {
+    font-family: 'Inter', sans-serif;
+    font-size: .68rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--rule);
+    margin-top: 8px;
+  }
+
+  .titulo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.6rem, 11vw, 4.2rem);
+    letter-spacing: .05em;
+    color: var(--ink);
+    margin-top: 20px;
+    line-height: .9;
+  }
+  .subtitulo {
+    font-family: 'Inter', sans-serif;
+    font-size: .78rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 8px;
+  }
+  .regla-perforada {
+    height: 3px;
+    max-width: 480px;
+    margin: 22px auto 0;
+    background-image: repeating-linear-gradient(90deg, var(--rule) 0 7px, transparent 7px 14px);
+  }
+
+  /* ============================= PANEL USUARIO ============================= */
+  .panel-usuario {
+    margin-top: 26px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .campo-nombre { flex: 1 1 200px; min-width: 0; }
+  .campo-nombre label {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .campo-nombre input {
+    width: 100%;
+    background: var(--paper-light);
+    border: 1px solid var(--rule);
+    border-bottom: 2px solid var(--ink);
+    padding: 11px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--ink);
+    border-radius: 2px;
+  }
+  .campo-nombre input::placeholder { color: var(--ink-soft); opacity: .55; font-weight: 400; }
+
+  .btn {
+    font-family: 'Space Mono', monospace;
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    border-radius: 2px;
+    border: 1.5px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    white-space: nowrap;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .btn:hover { background: var(--ink); color: var(--paper-light); }
+
+  .btn-fichar { border-color: var(--ink); }
+  .btn-cancelar { border-color: var(--sello); color: var(--sello-oscuro); }
+  .btn-cancelar:hover { background: var(--sello); color: var(--paper-light); }
+
+  .btn-admin-abrir { flex-shrink: 0; }
+
+  /* ============================= MENSAJE / TOAST ============================= */
+  .mensaje {
+    margin-top: 14px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--sello);
+    background: var(--paper-light);
+    font-size: .85rem;
+    font-weight: 500;
+    display: none;
+  }
+  .mensaje.visible { display: block; }
+  .mensaje.info { border-left-color: var(--ink); }
+
+  /* ============================= SELECTOR DE DÍAS ============================= */
+  .selector-dias {
+    margin-top: 22px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+  }
+  .dia-tab {
+    flex-shrink: 0;
+    min-width: 62px;
+    background: var(--paper-alt);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 9px 6px 8px;
+    text-align: center;
+  }
+  .dia-tab__dow {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: .64rem;
+    letter-spacing: .08em;
+    color: var(--ink-soft);
+  }
+  .dia-tab__num {
+    display: block;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: .03em;
+    color: var(--ink);
+    margin-top: 2px;
+  }
+  .dia-tab[aria-pressed="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+    box-shadow: 0 2px 0 0 var(--sello);
+  }
+  .dia-tab[aria-pressed="true"] .dia-tab__dow { color: var(--rule); }
+  .dia-tab[aria-pressed="true"] .dia-tab__num { color: var(--paper-light); }
+
+  /* ============================= ACCIONES ADMIN ============================= */
+  .barra-admin {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .insignia-admin {
+    font-family: 'Space Mono', monospace;
+    font-size: .66rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--paper-light);
+    padding: 6px 10px;
+    border-radius: 2px;
+  }
+  .btn-vaciar { border-color: var(--sello); color: var(--sello-oscuro); }
+  .btn-vaciar:hover { background: var(--sello); color: var(--paper-light); }
+  .btn-salir-admin { font-size: .68rem; padding: 8px 12px; }
+
+  /* ============================= TARJETERO (fichas) ============================= */
+  .tarjetero {
+    margin-top: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .tarjeta {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    background: var(--paper-alt);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+    min-height: 64px;
+  }
+  .tarjeta__perforacion {
+    width: 20px;
+    flex-shrink: 0;
+    background-color: var(--rule);
+    background-image: radial-gradient(circle, var(--paper-alt) 3px, transparent 3.2px);
+    background-size: 100% 15px;
+    background-position: center 7px;
+  }
+  .tarjeta__hora {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: .92rem;
+    color: var(--ink);
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 108px;
+    border-right: 1px solid var(--rule);
+    letter-spacing: -.01em;
+  }
+  .tarjeta__estado {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8px 12px;
+    min-width: 0;
+    gap: 2px;
+  }
+  .tarjeta__hora-fichaje {
+    position: absolute;
+    left: 12px;
+    bottom: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: .6rem;
+    color: var(--ink-soft);
+    letter-spacing: .04em;
+    opacity: .7;
+  }
+  .tarjeta__libre {
+    font-family: 'Inter', sans-serif;
+    font-size: .74rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    opacity: .5;
+  }
+  .tarjeta__accion {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding-right: 10px;
+  }
+  .tarjeta__accion .btn { padding: 9px 12px; font-size: .66rem; }
+
+  /* sello de goma — cae solo sobre la columna de estado, donde iría el nombre */
+  .sello-estampado {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    pointer-events: none;
+  }
+  .sello-estampado span {
+    font-family: 'Anton', sans-serif;
+    font-size: .8rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--sello);
+    border: 2.5px solid var(--sello);
+    border-radius: 4px;
+    padding: 4px 10px;
+    transform: rotate(-7deg);
+    transform-origin: left center;
+    mix-blend-mode: multiply;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sello-estampado.animar span {
+    animation: estampar .38s cubic-bezier(.25,.85,.3,1.15) both;
+  }
+  @keyframes estampar {
+    0%   { opacity: 0; transform: rotate(-20deg) scale(2.6); }
+    55%  { opacity: 1; transform: rotate(-4deg) scale(.9); }
+    78%  { transform: rotate(-9deg) scale(1.06); }
+    100% { opacity: 1; transform: rotate(-7deg) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sello-estampado.animar span { animation: none; }
+    .reloj-piloto { animation: none; }
+  }
+
+  /* ============================= MODAL ADMIN ============================= */
+  .modal-fondo {
+    position: fixed;
+    inset: 0;
+    background: rgba(28,27,24,.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .modal-panel {
+    background: var(--paper-light);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 26px 22px;
+    max-width: 320px;
+    width: 100%;
+    box-shadow: 0 24px 60px rgba(0,0,0,.4);
+  }
+  .modal-panel h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.7rem;
+    letter-spacing: .04em;
+    margin-bottom: 14px;
+  }
+  .modal-panel label {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: .66rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .modal-panel input {
+    width: 100%;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-bottom: 2px solid var(--ink);
+    padding: 10px 11px;
+    border-radius: 2px;
+    font-size: .95rem;
+    margin-bottom: 16px;
+  }
+  .modal-acciones { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-enlace {
+    background: none; border: none; padding: 9px 6px;
+    font-family: 'Inter', sans-serif; font-size: .82rem;
+    color: var(--ink-soft); text-decoration: underline;
+  }
+
+  footer.pie {
+    text-align: center;
+    margin-top: 40px;
+    font-family: 'Space Mono', monospace;
+    font-size: .64rem;
+    letter-spacing: .08em;
+    color: var(--ink-soft);
+    opacity: .6;
+  }
+
+  @media (max-width: 420px) {
+    .tarjeta__hora { min-width: 88px; font-size: .82rem; padding: 0 8px; }
+    .tarjeta__accion .btn { padding: 8px 9px; font-size: .6rem; }
+    .sello-estampado span { font-size: .78rem; padding: 4px 10px; }
+  }
+</style>
+</head>
+<body>
+<noscript>Esta aplicación necesita JavaScript para funcionar.</noscript>
+
+<div class="envoltorio">
+
+  <header class="cabecera">
+    <div class="reloj-carcasa">
+      <span class="reloj-tornillo tl" aria-hidden="true"></span>
+      <span class="reloj-tornillo tr" aria-hidden="true"></span>
+      <span class="reloj-tornillo bl" aria-hidden="true"></span>
+      <span class="reloj-tornillo br" aria-hidden="true"></span>
+      <span class="reloj-piloto" aria-hidden="true"></span>
+      <div class="reloj-lectura" id="relojLectura">00:00:00</div>
+      <div class="reloj-fecha" id="relojFecha">CARGANDO FECHA</div>
+    </div>
+    <h1 class="titulo">LA OFICINA</h1>
+    <p class="subtitulo">Reservas de la sala · fichaje por horas</p>
+    <div class="regla-perforada" aria-hidden="true"></div>
+  </header>
+
+  <main>
+    <section class="panel-usuario" aria-label="Datos del usuario">
+      <div class="campo-nombre">
+        <label for="inputNombre">Tu nombre</label>
+        <input type="text" id="inputNombre" maxlength="40" placeholder="Escribe cómo firmarás tus fichajes" autocomplete="off">
+      </div>
+      <button type="button" class="btn btn-admin-abrir" id="btnAbrirAdmin">Modo admin</button>
+    </section>
+
+    <div class="mensaje" id="mensaje" role="status" aria-live="polite"></div>
+
+    <nav class="selector-dias" id="selectorDias" aria-label="Selección de día"></nav>
+
+    <div class="barra-admin" id="barraAdmin" hidden>
+      <span class="insignia-admin">Modo admin activo</span>
+      <button type="button" class="btn btn-vaciar" id="btnVaciarDia">Vaciar día</button>
+      <button type="button" class="btn btn-salir-admin" id="btnSalirAdmin">Salir</button>
+    </div>
+
+    <section class="tarjetero" id="tarjetero" aria-label="Franjas horarias del día"></section>
+  </main>
+
+  <footer class="pie">LA OFICINA — RESERVAS COMPARTIDAS</footer>
+</div>
+
+<div class="modal-fondo" id="modalFondo" hidden>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
+    <h2 id="modalTitulo">Acceso admin</h2>
+    <form id="formAdmin">
+      <label for="inputPasswordAdmin">Contraseña</label>
+      <input type="password" id="inputPasswordAdmin" autocomplete="off">
+      <div class="modal-acciones">
+        <button type="button" class="btn-enlace" id="btnCerrarModal">Cancelar</button>
+        <button type="submit" class="btn btn-fichar">Entrar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  /* ═══════════════════════════════════════════════════════════════════
+     CONFIGURACIÓN — edita estos valores antes de desplegar
+     ═══════════════════════════════════════════════════════════════════ */
+  const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
+  const SUPABASE_KEY = 'TU-CLAVE-ANON-PUBLICA';
+  const ADMIN_PASS   = 'cambia-esto';
+  const HORA_INICIO  = 8;   // primera franja empieza a esta hora
+  const HORA_FIN     = 21;  // última franja termina a esta hora
+  /* ═══════════════════════════════════════════════════════════════════ */
+
+  const DOW = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+
+  let clienteSupabase = null;
+  let diaSeleccionado = formatearFechaISO(new Date());
+  let modoAdmin = sessionStorage.getItem('oficina_admin') === '1';
+  let reservasActuales = {};
+  let primerRenderDia = true;
+  let pollingId = null;
+
+  const elRelojLectura = document.getElementById('relojLectura');
+  const elRelojFecha = document.getElementById('relojFecha');
+  const elInputNombre = document.getElementById('inputNombre');
+  const elMensaje = document.getElementById('mensaje');
+  const elSelectorDias = document.getElementById('selectorDias');
+  const elBarraAdmin = document.getElementById('barraAdmin');
+  const elTarjetero = document.getElementById('tarjetero');
+  const elBtnAbrirAdmin = document.getElementById('btnAbrirAdmin');
+  const elBtnVaciarDia = document.getElementById('btnVaciarDia');
+  const elBtnSalirAdmin = document.getElementById('btnSalirAdmin');
+  const elModalFondo = document.getElementById('modalFondo');
+  const elFormAdmin = document.getElementById('formAdmin');
+  const elInputPasswordAdmin = document.getElementById('inputPasswordAdmin');
+  const elBtnCerrarModal = document.getElementById('btnCerrarModal');
+
+  /* ---------- utilidades ---------- */
+  function formatearFechaISO(fecha) {
+    const y = fecha.getFullYear();
+    const m = String(fecha.getMonth() + 1).padStart(2, '0');
+    const d = String(fecha.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  function formatoHora(hora) {
+    const h1 = String(hora).padStart(2, '0');
+    const h2 = String(hora + 1).padStart(2, '0');
+    return `${h1}:00 – ${h2}:00`;
+  }
+  function formatoHoraFichaje(createdAt) {
+    try {
+      return new Date(createdAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    } catch { return ''; }
+  }
+  function escaparHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+  function obtenerNombre() { return elInputNombre.value.trim(); }
+  function mismoNombre(a, b) { return a.trim().toLowerCase() === b.trim().toLowerCase(); }
+
+  let temporizadorMensaje = null;
+  function mostrarMensaje(texto, tipo) {
+    elMensaje.textContent = texto;
+    elMensaje.className = 'mensaje visible' + (tipo === 'info' ? ' info' : '');
+    clearTimeout(temporizadorMensaje);
+    temporizadorMensaje = setTimeout(() => { elMensaje.className = 'mensaje'; }, 5000);
+  }
+
+  /* ---------- reloj de la cabecera ---------- */
+  function actualizarReloj() {
+    const ahora = new Date();
+    const hh = String(ahora.getHours()).padStart(2, '0');
+    const mm = String(ahora.getMinutes()).padStart(2, '0');
+    const ss = String(ahora.getSeconds()).padStart(2, '0');
+    elRelojLectura.textContent = `${hh}:${mm}:${ss}`;
+    elRelojFecha.textContent = ahora
+      .toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+      .toUpperCase();
+  }
+
+  /* ---------- selector de días ---------- */
+  function generarDias() {
+    const dias = [];
+    const hoy = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(hoy);
+      d.setDate(hoy.getDate() + i);
+      dias.push({ iso: formatearFechaISO(d), dow: DOW[d.getDay()], numero: d.getDate() });
+    }
+    return dias;
+  }
+  function renderSelectorDias() {
+    elSelectorDias.innerHTML = '';
+    generarDias().forEach(dia => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dia-tab';
+      btn.dataset.iso = dia.iso;
+      btn.setAttribute('aria-pressed', dia.iso === diaSeleccionado ? 'true' : 'false');
+      btn.innerHTML = `<span class="dia-tab__dow">${dia.dow}</span><span class="dia-tab__num">${dia.numero}</span>`;
+      btn.addEventListener('click', () => seleccionarDia(dia.iso));
+      elSelectorDias.appendChild(btn);
+    });
+  }
+  function actualizarSelectorActivo() {
+    elSelectorDias.querySelectorAll('.dia-tab').forEach(btn => {
+      btn.setAttribute('aria-pressed', btn.dataset.iso === diaSeleccionado ? 'true' : 'false');
+    });
+  }
+  function seleccionarDia(iso) {
+    if (iso === diaSeleccionado) return;
+    diaSeleccionado = iso;
+    primerRenderDia = true;
+    reservasActuales = {};
+    actualizarSelectorActivo();
+    cargarReservas();
+  }
+
+  /* ---------- tarjetero ---------- */
+  function crearFilaTarjeta(hora, reserva, animar) {
+    const fila = document.createElement('div');
+    fila.className = 'tarjeta';
+
+    const estadoHtml = reserva
+      ? `<span class="tarjeta__hora-fichaje">Fichado a las ${formatoHoraFichaje(reserva.created_at)}</span>`
+      : `<span class="tarjeta__libre">Hueco libre</span>`;
+
+    fila.innerHTML = `
+      <div class="tarjeta__perforacion" aria-hidden="true"></div>
+      <div class="tarjeta__hora">${formatoHora(hora)}</div>
+      <div class="tarjeta__estado">${estadoHtml}</div>
+      <div class="tarjeta__accion"></div>
+    `;
+
+    const contenedorAccion = fila.querySelector('.tarjeta__accion');
+    if (!reserva) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-fichar';
+      btn.textContent = 'Reservar';
+      btn.addEventListener('click', () => reservarHueco(hora));
+      contenedorAccion.appendChild(btn);
+    } else if (modoAdmin || mismoNombre(reserva.nombre, obtenerNombre() || ' ')) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-cancelar';
+      btn.textContent = 'Cancelar';
+      btn.addEventListener('click', () => cancelarReserva(reserva));
+      contenedorAccion.appendChild(btn);
+    }
+
+    if (reserva) {
+      const sello = document.createElement('div');
+      sello.className = 'sello-estampado';
+      sello.innerHTML = `<span>Reservado · ${escaparHtml(reserva.nombre)}</span>`;
+      fila.querySelector('.tarjeta__estado').appendChild(sello);
+      if (animar) requestAnimationFrame(() => sello.classList.add('animar'));
+    }
+    return fila;
+  }
+
+  function renderTarjetas(nuevoMapa) {
+    elTarjetero.innerHTML = '';
+    for (let hora = HORA_INICIO; hora < HORA_FIN; hora++) {
+      const reserva = nuevoMapa[hora] || null;
+      const habiaAntes = !!reservasActuales[hora];
+      const animar = !primerRenderDia && !!reserva && !habiaAntes;
+      elTarjetero.appendChild(crearFilaTarjeta(hora, reserva, animar));
+    }
+    reservasActuales = nuevoMapa;
+    primerRenderDia = false;
+  }
+
+  function redibujarSinAnimacion() {
+    renderTarjetas(reservasActuales);
+  }
+
+  async function cargarReservas() {
+    if (!clienteSupabase) return;
+    const { data, error } = await clienteSupabase
+      .from('reservas')
+      .select('*')
+      .eq('dia', diaSeleccionado)
+      .order('hora', { ascending: true });
+
+    if (error) {
+      mostrarMensaje('No se han podido cargar las reservas. Revisa la conexión.', 'error');
+      console.error(error);
+      return;
+    }
+    const mapa = {};
+    (data || []).forEach(r => { mapa[r.hora] = r; });
+    renderTarjetas(mapa);
+  }
+
+  /* ---------- acciones de reserva ---------- */
+  async function reservarHueco(hora) {
+    const nombre = obtenerNombre();
+    if (!nombre) {
+      mostrarMensaje('Escribe tu nombre antes de fichar el hueco.', 'error');
+      elInputNombre.focus();
+      return;
+    }
+    localStorage.setItem('oficina_nombre', nombre);
+
+    const { error } = await clienteSupabase
+      .from('reservas')
+      .insert({ dia: diaSeleccionado, hora, nombre });
+
+    if (error) {
+      if (error.code === '23505') {
+        mostrarMensaje('Ese hueco acaba de ser fichado por otra persona. Actualizando…', 'error');
+      } else {
+        mostrarMensaje('No se ha podido guardar la reserva. Inténtalo de nuevo.', 'error');
+        console.error(error);
+      }
+      await cargarReservas();
+      return;
+    }
+    await cargarReservas();
+  }
+
+  async function cancelarReserva(reserva) {
+    const esPropia = mismoNombre(reserva.nombre, obtenerNombre() || ' ');
+    if (!modoAdmin && !esPropia) return;
+
+    const texto = esPropia
+      ? `¿Cancelar tu reserva de las ${formatoHora(reserva.hora)}?`
+      : `¿Cancelar la reserva de ${reserva.nombre} a las ${formatoHora(reserva.hora)}?`;
+    if (!confirm(texto)) return;
+
+    const { error } = await clienteSupabase.from('reservas').delete().eq('id', reserva.id);
+    if (error) {
+      mostrarMensaje('No se ha podido cancelar la reserva. Inténtalo de nuevo.', 'error');
+      console.error(error);
+      return;
+    }
+    mostrarMensaje('Reserva cancelada.', 'info');
+    await cargarReservas();
+  }
+
+  async function vaciarDia() {
+    if (!modoAdmin) return;
+    if (!confirm('¿Vaciar todas las reservas de este día? Esta acción no se puede deshacer.')) return;
+
+    const { error } = await clienteSupabase.from('reservas').delete().eq('dia', diaSeleccionado);
+    if (error) {
+      mostrarMensaje('No se ha podido vaciar el día.', 'error');
+      console.error(error);
+      return;
+    }
+    mostrarMensaje('Día vaciado.', 'info');
+    await cargarReservas();
+  }
+
+  /* ---------- modo admin ---------- */
+  function actualizarUIAdmin() {
+    elBarraAdmin.hidden = !modoAdmin;
+    elBtnAbrirAdmin.hidden = modoAdmin;
+  }
+  function abrirModalAdmin() {
+    elModalFondo.hidden = false;
+    elInputPasswordAdmin.value = '';
+    elInputPasswordAdmin.focus();
+  }
+  function cerrarModalAdmin() {
+    elModalFondo.hidden = true;
+    elBtnAbrirAdmin.focus();
+  }
+  function manejarLoginAdmin(evento) {
+    evento.preventDefault();
+    if (elInputPasswordAdmin.value === ADMIN_PASS) {
+      modoAdmin = true;
+      sessionStorage.setItem('oficina_admin', '1');
+      cerrarModalAdmin();
+      actualizarUIAdmin();
+      redibujarSinAnimacion();
+      mostrarMensaje('Modo admin activado.', 'info');
+    } else {
+      mostrarMensaje('Contraseña incorrecta.', 'error');
+    }
+    elInputPasswordAdmin.value = '';
+  }
+  function salirModoAdmin() {
+    modoAdmin = false;
+    sessionStorage.removeItem('oficina_admin');
+    actualizarUIAdmin();
+    redibujarSinAnimacion();
+  }
+
+  /* ---------- refresco ---------- */
+  function iniciarPolling() {
+    if (pollingId) clearInterval(pollingId);
+    pollingId = setInterval(() => {
+      if (!document.hidden) cargarReservas();
+    }, 15000);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) cargarReservas();
+  });
+
+  /* ---------- eventos ---------- */
+  elInputNombre.addEventListener('change', () => {
+    localStorage.setItem('oficina_nombre', elInputNombre.value.trim());
+    redibujarSinAnimacion();
+  });
+  elBtnAbrirAdmin.addEventListener('click', abrirModalAdmin);
+  elBtnCerrarModal.addEventListener('click', cerrarModalAdmin);
+  elFormAdmin.addEventListener('submit', manejarLoginAdmin);
+  elBtnVaciarDia.addEventListener('click', vaciarDia);
+  elBtnSalirAdmin.addEventListener('click', salirModoAdmin);
+  elModalFondo.addEventListener('click', (e) => { if (e.target === elModalFondo) cerrarModalAdmin(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !elModalFondo.hidden) cerrarModalAdmin();
+  });
+
+  /* ---------- arranque ---------- */
+  function iniciar() {
+    if (SUPABASE_URL.includes('TU-PROYECTO') || SUPABASE_KEY.includes('TU-CLAVE')) {
+      mostrarMensaje('Configura SUPABASE_URL y SUPABASE_KEY en el archivo antes de usar la aplicación.', 'error');
+    }
+    clienteSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    elInputNombre.value = localStorage.getItem('oficina_nombre') || '';
+
+    actualizarReloj();
+    setInterval(actualizarReloj, 1000);
+
+    renderSelectorDias();
+    actualizarUIAdmin();
+    cargarReservas();
+    iniciarPolling();
+  }
+
+  document.addEventListener('DOMContentLoaded', iniciar);
+</script>
+</body>
+</html>
